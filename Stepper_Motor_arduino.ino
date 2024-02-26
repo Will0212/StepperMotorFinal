@@ -1,28 +1,26 @@
 // Pin assignments
-const int dirPin = 2;           // Stepper motor direction, connected to DIR pin
-const int clockPin = 3;         // Stepper motor rotation, connected to CLOCK pin
-const int onoffPin = 5;         // Turn Stepper ON or OFF, connected to ON/OFF pin
+const int dirPin = 2; // Stepper motor direction, connected to DIR pin
+const int clockPin = 3; // Stepper motor rotation, connected to CLOCK pin
+const int onoffPin = 5; // Turn Stepper ON or OFF, connected to ON/OFF pin
 const int inductionSensorPin1 = A0; // Inductive Sensor1 Input, switches ON/OFF depending on position of metal bead
 const int inductionSensorPin2 = A1; // Inductive Sensor2 Input, switches ON/OFF depending on position of metal bead
-const int pushbuttonPin = 12;    // Changes value of ON/OFF pin
-const int signalPin = A3;
-const int powerPin = 9;
+const int pushbuttonPin = A3; // Changes value of ON/OFF pin
+const int signalPin = A2; // Motion Sensor Input, signal changes depending on amount of light detected
 
 
 // Boolean flags to control the motor
 bool overrideOn = false; // To control which motor function is enabled, regualar or overriden
 bool motorControlEnabled = false; // To control the whether the motor can move or not
 bool direction = true; // To control the direction, true counter clockwise, false for clockwise
-//bool gotDetected = false; // To check if a metal is detected, true for yes, false for not
 
 
 // initial values
 float timeDelay = 1000; // Delay between clock inputs in ms
-float RPMValue=0;
+float RPMValue=0; // Initial RPM value
 float newRPM; // Delay in ms to replace timeDelay when inputted via Webapp
 int stepCount = 0; // Current steps done by motor
-float sourcePosition = 0; // Sistance of source from home
-int signal;
+float sourcePosition = 0; // Distance of source from home
+int signal; // Value of signal being sent by the motion sensor
 
 
 // Parameters of the motor
@@ -48,17 +46,11 @@ void setup()
   pinMode(inductionSensorPin1, INPUT_PULLUP);
   pinMode(inductionSensorPin2, INPUT_PULLUP);
   pinMode(pushbuttonPin, INPUT);
+  pinMode(signalPin,INPUT);
 
   // Values of output pins
   digitalWrite(dirPin, HIGH);
   digitalWrite(onoffPin, LOW);
-  digitalWrite(pushbuttonPin, LOW);
-
-  pinMode(signalPin,INPUT);
-  pinMode(powerPin,OUTPUT);
-
-
-  digitalWrite(powerPin, HIGH);
 
   // Start serial communication
   Serial.begin(9600);
@@ -74,92 +66,9 @@ void loop()
 
   updatePosition();  // Update the current postion of the source on the Webapp
 
-  signal = analogRead(signalPin);
+  signal = analogRead(signalPin); // Continuously get the value of the signal from the arduino
 
-  updateSignal();
-}
-
-
-// Rotate the motor one step
-void rotateMotor() 
-{
-  digitalWrite(clockPin, HIGH); // Set the clock pin to high
-  delayMicroseconds(timeDelay); // Delay by timeDelay ms
-  digitalWrite(clockPin, LOW); // Set the clock pin to low
-  delayMicroseconds(timeDelay); // Delay by timeDelay ms
-  stepCount++; // Increment the step count by 1
-  setPosition(); // Set the position of the source
-}
-
-
-// Set the position of the motor
-void setPosition() 
-{
-  sourcePosition = direction ? sourcePosition + distancePerStep : sourcePosition - distancePerStep; // Increase the position if direction is true, increase if false
-}
-
-
-// Change the direction of the motor
-void ChangeDirection()
-{
-  direction = !direction; // Change the value of the direction flag
-  digitalWrite(dirPin, direction ? HIGH : LOW); // If direction is true, set dirPIn to high, if it's false, set dirPin to true
-  Serial.print("direction:");
-  Serial.println(direction ? "CounterClockWise" : "ClockWise");
-}
-
-
-// Set the value of the motorControlEnabledFlag and update the status of the motor on the webapp;
-void SetMotorControlEnabled(bool val)
-{
-  motorControlEnabled = val;
-  Serial.print("motorControlEnabled:");
-  Serial.println(motorControlEnabled ? "ON" : "OFF");
-}
-
-
-// Set the direction
-void setDirection(bool val)
-{
-    if(val != direction){ //Only change direction if val is not the same as the current direction
-      ChangeDirection();
-    }
-}
-
-
-// Send the source to the housing
-void goToHousing()
-{
-
-  bool targetDirection = getPosition() < 0;// Determine the direction based on the current position
-  setDirection(targetDirection);
-
-  SetMotorControlEnabled(true);// Start moving towards the target
-
-  bool targetReached = false;// Use a flag to keep track of whether the target has been reached
-
-  while(!targetReached) {
-    if(motorControlEnabled) {// Update the motor state without blocking
-      rotateMotor(); // Rotate the motor
-    }
-    if(getPosition() >= -0.001 && getPosition() <= 0.001) {// Check if the target position is reached
-      digitalWrite(onoffPin, LOW); // Stop the motor
-      SetMotorControlEnabled(false); // Disable further motor control
-      targetReached = true; // Set the flag to exit the loop
-    }
-
-    // Insert a minimal delay to allow for system responsiveness
-    delay(1); // Adjust this delay as needed to balance responsiveness with motor control accuracy
-
-    // Optionally, include logic to periodically break out of this loop to allow the main loop to process
-  }
-}
-
-
-// Get the current position of the source
-float getPosition()
-{
-  return sourcePosition; // Return the current position of the source
+  updateSignal(); // Update the current signal of the motionsensor on the Webapp
 }
 
 
@@ -206,9 +115,11 @@ void readCommand()
     }
 
     else if (command == "goToHousing"){
+
       goToHousing();
     }
     else if (command == "goToDetector"){
+
       goToDetector();
     }
 
@@ -221,30 +132,10 @@ void readCommand()
                 Serial.println(sourcePosition);
             }
     }
-    
-    else if (command == "stopSignal") 
-    {
-      digitalWrite(powerPin, LOW);
-    } 
-    else if (command == "startSignal") 
-    {
-      digitalWrite(powerPin, HIGH);
+    else if(command == "setPosZero" && motorControlEnabled == false){
+      sourcePosition = 0;
     }
-    
   }
-}
-
-
-// Send the current position to the Webapp
-void updatePosition()
-{
-  if (millis() - lastSendTime > sendInterval)// Check if the current time minus the last recorded time is greater than the predefined interval 
-    {
-      Serial.print("sourcePosition:");// If the condition is true, update the postion on the Webapp
-      Serial.println(sourcePosition);
-
-      lastSendTime = millis();// Update lastSendTime to the current time, resetting the timer for the next interval
-    }
 }
 
 
@@ -256,6 +147,20 @@ void motorFunction()
 
   int sensorValue2 =  analogRead(inductionSensorPin2);// Get the value of the sensor pin 2
   float voltage2 = sensorValue2 * (12.0/1023.0);// Convert the value to a voltage
+
+  int pushButtonValue2 =  analogRead(pushbuttonPin);// Get the value of the motion sensor signal pin
+  float voltage3 = pushButtonValue2 * (5.0/1023.0);// Convert the value to a voltage
+
+
+    if(voltage3 < 4){ //Check if pushbutton is pressed
+    ChangeDirection(); // Change the direction
+    for(int i=0 ; i<1600; i++) //Rotate one revolution
+      {
+        rotateMotor();
+      }
+    digitalWrite(onoffPin, LOW); // Stop the motor
+    SetMotorControlEnabled(false); // Disallow motor control
+  }
 
   if(digitalRead(inductionSensorPin1) <= 10 && digitalRead(inductionSensorPin2) <= 10)//Check if the voltage in the induction sensor is less than 10
   {
@@ -282,7 +187,7 @@ void motorFunction()
   if(voltage1 > 10 && !direction) // CHeck if metal entered the induction sensor  1 while the motor is counterclockwise
   {
     ChangeDirection(); // Change the direction
-    for(int i=0;i<1600;i++) //Rotate one revolution
+    for(int i=0;i<800;i++) // Rotate one half revolution
       {
         rotateMotor();
       }
@@ -293,7 +198,7 @@ void motorFunction()
   if(voltage2 > 10 && direction) // CHeck if metal entered the induction sensor 2 while the motor is clockwise
   {
     ChangeDirection(); // Change the direction
-    for(int i=0;i<1600;i++) //Rotate one revolution
+    for(int i=0;i<800;i++) //Rotate one half revolution
       {
         rotateMotor();
       }
@@ -301,22 +206,13 @@ void motorFunction()
     SetMotorControlEnabled(false); // Disallow motor control
   }
   
-  if(digitalRead(pushbuttonPin) == LOW ){ //Check if pushbutton is pressed
-    ChangeDirection(); // Change the direction
-    for(int i=0 ; i<4800; i++) //Rotate three revolutions
-      {
-        rotateMotor();
-      }
-    digitalWrite(onoffPin, LOW); // Stop the motor
-    SetMotorControlEnabled(false); // Disallow motor control
-  }
 }
 
 
 // Overriden fucntion to control the motor
 void motorFunctionOverriden()
 {
-  if (motorControlEnabled) // Check if motor contros is allowed
+  if (motorControlEnabled) // Check if motor control is allowed
   {  
     if (direction) //Check if the direction is true
     {
@@ -334,19 +230,64 @@ void motorFunctionOverriden()
 }
 
 
-// Send the source to the housing
-void goToDetector()
+// Rotate the motor one step
+void rotateMotor() 
 {
-  bool targetDirection = getPosition() < 2;// Determine the direction based on the current position
+  updateSignal();
+  digitalWrite(clockPin, HIGH); // Set the clock pin to high
+  delayMicroseconds(timeDelay); // Delay by timeDelay ms
+  digitalWrite(clockPin, LOW); // Set the clock pin to low
+  delayMicroseconds(timeDelay); // Delay by timeDelay ms
+  stepCount++; // Increment the step count by 1
+  setPosition(); // Set the position of the source
+}
+
+
+// Send the source to the housing
+void goToHousing()
+{
+
+  bool targetDirection = getPosition() < 0;// Determine the direction based on the current position
   setDirection(targetDirection);
 
   SetMotorControlEnabled(true);// Start moving towards the target
 
   bool targetReached = false;// Use a flag to keep track of whether the target has been reached
 
-  while(!targetReached) {// Update the motor state without blocking
+  while(!targetReached) {
+    if(motorControlEnabled) {// Update the motor state without blocking
+      rotateMotor(); // Rotate the motor
+      updatePosition();
+    }
+    if(getPosition() >= -0.001 && getPosition() <= 0.001) {// Check if the target position is reached
+      digitalWrite(onoffPin, LOW); // Stop the motor
+      SetMotorControlEnabled(false); // Disable further motor control
+      targetReached = true; // Set the flag to exit the loop
+    }
+
+    // Insert a minimal delay to allow for system responsiveness
+    delay(1); // Adjust this delay as needed to balance responsiveness with motor control accuracy
+
+    // Optionally, include logic to periodically break out of this loop to allow the main loop to process
+  }
+}
+
+
+// Send the source to the housing
+void goToDetector()
+{
+  bool targetDirection = getPosition() < 2; // Determine the direction based on the current position
+  setDirection(targetDirection);
+
+  SetMotorControlEnabled(true); // Start moving towards the target
+
+  bool targetReached = false; // Flag to keep track of whether the target has been reached
+
+  while(!targetReached) { // Update the motor state without blocking
+
     if(motorControlEnabled) { // Check if motor control is allowed
       rotateMotor(); // Rotate the motor
+      updatePosition();
     }
     
     if(getPosition() >= 1.999 && getPosition() <= 2.001) {// Check if the target position is reached
@@ -363,13 +304,88 @@ void goToDetector()
 }
 
 
-void updateSignal()
+// Set the value of the motorControlEnabled flag and update the status of the motor on the webapp;
+void SetMotorControlEnabled(bool val)
+{
+  motorControlEnabled = val; // Set motorControlEnabled to the value of val
+  motorControlEnabled ? digitalWrite(onoffPin, HIGH) : digitalWrite(onoffPin, LOW); // Set the motor on or off depending on motorControlEnabled
+  Serial.print("motorControlEnabled:");
+  Serial.println(motorControlEnabled ? "ON" : "OFF");
+}
+
+
+// Change the direction of the motor
+void ChangeDirection()
+{
+  direction = !direction; // Change the value of the direction flag
+  digitalWrite(dirPin, direction ? HIGH : LOW); // If direction is true, set dirPIn to high, if it's false, set dirPin to true
+  Serial.print("direction:");
+  Serial.println(direction ? "CounterClockWise" : "ClockWise");
+}
+
+
+// Set the direction
+void setDirection(bool val)
+{
+    if(val != direction){ //Only change direction if val is not the same as the current direction
+      ChangeDirection();
+    }
+}
+
+
+// Set the position of the motor
+void setPosition() 
+{
+  sourcePosition = direction ? sourcePosition + distancePerStep : sourcePosition - distancePerStep; // Increase the position if direction is true, increase if false
+}
+
+
+// Get the current position of the source
+float getPosition()
+{
+  return sourcePosition; // Return the current position of the source
+}
+
+
+// Send the current position to the Webapp
+void updatePosition()
 {
   if (millis() - lastSendTime > sendInterval)// Check if the current time minus the last recorded time is greater than the predefined interval 
     {
-      Serial.print("signal:");// If the condition is true, update the postion on the Webapp
-      Serial.println(signal);
+      Serial.print("sourcePosition:");// If the condition is true, update the postion on the Webapp
+      Serial.println(sourcePosition);
 
       lastSendTime = millis();// Update lastSendTime to the current time, resetting the timer for the next interval
     }
 }
+
+
+// Function to update the signal from the motion sensor on the webapp
+void updateSignal()
+{
+
+
+  signal = analogRead(signalPin); // Update the signal variable
+  if (millis() - lastSendTime > sendInterval)// Check if the current time minus the last recorded time is greater than the predefined interval 
+    {
+      Serial.print("signal:");// If the condition is true, update the signal from the motion sensor on the Webapp
+      Serial.println(signal);
+
+      lastSendTime = millis();// Update lastSendTime to the current time, resetting the timer for the next interval
+    }
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
