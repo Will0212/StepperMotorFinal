@@ -11,7 +11,7 @@ const fs = require('fs');
 
  
 // Initialize SerialPort
-const port = new SerialPort({ path: '/dev/cu.usbmodem1132401', baudRate: 9600 });
+const port = new SerialPort({ path: 'COM7', baudRate: 9600 });
 
 // Initialize Parser
 const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
@@ -48,7 +48,7 @@ app.get('/control_motor', (req, res) => {
     });
 });
 
-
+// Route to get the motion sensor signal value stored on the arduino to use in index.html
 app.get('/get_sensor_signal', (req, res) => {
     res.send({ signal: currentSignal });
 });
@@ -152,11 +152,13 @@ parser.on('data', line => {
             currentSourcePosition = parseFloat(line.split("sourcePosition:")[1]);
         }
     }
-        // Handle direction status
+
+     // Handle direction status
     if (line.startsWith("direction:")) {
         currentDirection = line.split("direction:")[1].trim(); // This will be either 'ClockWise' or 'CounterClockWise'
     }
 
+    // Handle motorControlEnabled status
     if (line.startsWith("motorControlEnabled:")){
         currentMotorControlEnabled = line.split("motorControlEnabled:")[1].trim(); // This will be either 'ON' or 'OFF'
     }
@@ -167,6 +169,7 @@ parser.on('data', line => {
         //console.log(currentOverrideStatus);
     }
     
+    //Handle signal status
     if (line.startsWith("signal:")) {
         currentSignal = parseFloat(line.split("signal:")[1]);
     }
