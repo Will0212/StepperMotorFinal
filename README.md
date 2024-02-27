@@ -7,14 +7,23 @@ Download node.js
 Download arduino IDE
 
 Create a new directory and run these commands in this order:
+
 npm init
+
 npm install express
+
 npm install serial port
+
 mkdir public
+
 mkdir arduino
+
 touch server.js
+
 cd public
+
 touch index.html
+
 
 Copy the server.js code from this repository to your server.js file.
 
