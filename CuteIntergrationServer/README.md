@@ -40,5 +40,5 @@ Option 1: Run the cute server and the neutron calibration system servers indepen
 
 Option 2: Download the concurrently package in CUTE_TRIUMF/cute_hub by running the command npm install concurrently --save-dev
 
-Next edit package.js to start the node.js server when the cute hub server is started: "start": "concurrently \"node /Users/willmcintyre/source/neutron_calibration_system || :\" \"react-scripts start\"",
+Next edit package.js to start the node.js server when the cute hub server is started: "start": "concurrently \"node /Users/willmcintyre/source/neutron_calibration_system || :\" \"react-scripts start\"", the edited package.json file is in this repository
 edit the path so that the node command is used in the directory where the neutron calibration system server is stored, you may now usue npm start
