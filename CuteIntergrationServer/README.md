@@ -1,5 +1,7 @@
 Authors: Vijay Iyer, Will McIntyre, Nate Cullen
 
+THIS CODE ONLY WORKS WHEN CUTE SERVER IS RUN IN DEVELOPPER MODE, use code in DeployCuteServer directory in this repository to run the code on the deployed server
+
 Note: The StandAloneCode directory steps must be completed prior to running the neutron calibration system on the cute server.
 
 In the following path, CUTE_TRIUMF/cute_hub/src/pages/tabPage/tabs follow these commands in this order:
